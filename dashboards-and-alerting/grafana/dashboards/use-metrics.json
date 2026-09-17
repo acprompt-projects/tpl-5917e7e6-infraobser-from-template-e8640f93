@@ -1,0 +1,81 @@
+{
+  "uid": "use-metrics",
+  "title": "USE Metrics — Resource Utilization",
+  "tags": ["use", "baseline"],
+  "timezone": "utc",
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "${ds_prom}"},
+        "query": "label_values(node_cpu_seconds_total, instance)",
+        "refresh": 2,
+        "includeAll": true,
+        "current": {"text": "All", "value": "$__all"}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "title": "CPU Utilization (%)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "${ds_prom}"},
+      "targets": [
+        {"expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{instance=~\"$instance\",mode=\"idle\"}[5m])) * 100)", "legendFormat": "{{instance}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "thresholds": {"steps": [{"color": "green","value":null},{"color":"yellow","value":60},{"color":"red","value":85}]}}}
+    },
+    {
+      "id": 2, "title": "Memory Utilization (%)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "${ds_prom}"},
+      "targets": [
+        {"expr": "(1 - (node_memory_MemAvailable_bytes{instance=~\"$instance\"} / node_memory_MemTotal_bytes{instance=~\"$instance\"})) * 100", "legendFormat": "{{instance}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "thresholds": {"steps": [{"color": "green","value":null},{"color":"yellow","value":70},{"color":"red","value":90}]}}}
+    },
+    {
+      "id": 3, "title": "Disk I/O Saturation",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "${ds_prom}"},
+      "targets": [
+        {"expr": "rate(node_disk_io_time_seconds_total{instance=~\"$instance\"}[5m])", "legendFormat": "{{instance}} {{device}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "thresholds": {"steps": [{"color": "green","value":null},{"color":"yellow","value":0.6},{"color":"red","value":0.8}]}}}
+    },
+    {
+      "id": 4, "title": "Network Saturation (rx+tx / limit)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "${ds_prom}"},
+      "targets": [
+        {"expr": "(rate(node_network_receive_bytes_total{instance=~\"$instance\",device!~\"lo\"}[5m]) + rate(node_network_transmit_bytes_total{instance=~\"$instance\",device!~\"lo\"}[5m]))", "legendFormat": "{{instance}} {{device}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "Bps"}}
+    },
+    {
+      "id": 5, "title": "Filesystem Usage (%)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "${ds_prom}"},
+      "targets": [
+        {"expr": "(1 - (node_filesystem_avail_bytes{instance=~\"$instance\",fstype!~\"tmpfs|swap\"} / node_filesystem_size_bytes{instance=~\"$instance\",fstype!~\"tmpfs|swap\"})) * 100", "legendFormat": "{{instance}} {{mountpoint}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "thresholds": {"steps": [{"color": "green","value":null},{"color":"yellow","value":70},{"color":"red","value":85}]}}}
+    },
+    {
+      "id": 6, "title": "OOM / Kernel Errors (Loki)",
+      "type": "logs",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+      "datasource": {"type": "loki", "uid": "${ds_loki}"},
+      "targets": [
+        {"expr": "{job=~\"varlogs\"} |~ \"(?i)(oom|out of memory|kernel:.*error)\"", "legendFormat": ""}
+      ]
+    }
+  ]
+}
